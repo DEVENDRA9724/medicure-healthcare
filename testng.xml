@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="Medicure Test Suite">
+    <test name="All Tests">
+        <classes>
+            <class name="com.project.staragile.MedicureApplicationTests"/>
+            <class name="com.project.staragile.TestMedicureService"/>
+        </classes>
+    </test>
+</suite>

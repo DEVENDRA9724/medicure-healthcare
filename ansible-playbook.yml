@@ -1,0 +1,129 @@
+---
+- name: Configure Kubernetes Nodes for Medicure Application
+  hosts: all
+  become: yes
+  vars:
+    required_packages:
+      - docker.io
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    k8s_version: "1.27"
+    
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+    
+    - name: Install required packages
+      apt:
+        name: "{{ required_packages }}"
+        state: present
+    
+    - name: Add Kubernetes GPG key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+    
+    - name: Add Kubernetes repository
+      apt_repository:
+        repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+        state: present
+    
+    - name: Install Kubernetes components
+      apt:
+        name:
+          - kubelet={{ k8s_version }}.0-00
+          - kubeadm={{ k8s_version }}.0-00
+          - kubectl={{ k8s_version }}.0-00
+        state: present
+        force: yes
+    
+    - name: Hold Kubernetes packages at current version
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+    
+    - name: Enable and start Docker
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+    
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+    
+    - name: Disable swap (required for Kubernetes)
+      command: swapoff -a
+      when: ansible_swaptotal_mb > 0
+    
+    - name: Remove swap entry from fstab
+      mount:
+        name: swap
+        fstype: swap
+        state: absent
+    
+    - name: Configure sysctl for Kubernetes
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: yes
+      loop:
+        - { name: net.bridge.bridge-nf-call-iptables, value: 1 }
+        - { name: net.ipv4.ip_forward, value: 1 }
+    
+    - name: Create .docker directory
+      file:
+        path: /home/{{ ansible_user }}/.docker
+        state: directory
+        mode: '0755'
+    
+    - name: Create kube config directory
+      file:
+        path: /home/{{ ansible_user }}/.kube
+        state: directory
+        mode: '0755'
+
+- name: Deploy Medicure Application to Kubernetes
+  hosts: master-node
+  become: yes
+  vars:
+    image_name: "medicure-healthcare:latest"
+    namespace: "medicure"
+    
+  tasks:
+    - name: Create namespace
+      command: kubectl create namespace {{ namespace }}
+      ignore_errors: yes
+    
+    - name: Deploy application
+      command: kubectl apply -f k8s/deployment.yaml -n {{ namespace }}
+    
+    - name: Apply service
+      command: kubectl apply -f k8s/service.yaml -n {{ namespace }}
+    
+    - name: Check deployment status
+      command: kubectl rollout status deployment/medicure-deployment -n {{ namespace }}
+      register: rollout_status
+      retries: 30
+      delay: 5
+      until: rollout_status.rc == 0
+    
+    - name: Get pods status
+      command: kubectl get pods -n {{ namespace }}
+      register: pods_status
+    
+    - name: Display pods status
+      debug:
+        msg: "{{ pods_status.stdout_lines }}"
