@@ -1,0 +1,12 @@
+﻿---
+- name: Health Check
+  hosts: localhost
+  tasks:
+    - name: Check API
+      uri:
+        url: http://host.docker.internal:8080/api/doctors/getAllDoctors
+        return_content: yes
+      register: result
+    
+    - debug:
+        msg: "API Response: {{ result.content | from_json | length }} doctors found"

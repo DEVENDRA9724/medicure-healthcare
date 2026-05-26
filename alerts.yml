@@ -1,0 +1,70 @@
+groups:
+  - name: medicure_alerts
+    interval: 30s
+    rules:
+      # Alert if application is down
+      - alert: ApplicationDown
+        expr: up{job="medicure-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Medicure Application is down"
+          description: "The medicure-healthcare application has been down for more than 1 minute."
+
+      # Alert on high error rate
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) 
+          / 
+          sum(rate(http_server_requests_seconds_count[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate on {{ $labels.application }}"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      # Alert on slow API responses
+      - alert: SlowAPIResponse
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_server_requests_seconds_bucket[5m])) by (le, uri, method)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow API response for {{ $labels.method }} {{ $labels.uri }}"
+          description: "95th percentile response time is {{ $value }}s"
+
+      # Alert on high memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (sum(jvm_memory_used_bytes) / sum(jvm_memory_max_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High JVM memory usage"
+          description: "Memory usage is {{ $value }}%"
+
+      # Alert on high CPU usage
+      - alert: HighCPUUsage
+        expr: process_cpu_usage > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+
+      # Alert when no requests in last 5 minutes
+      - alert: NoTraffic
+        expr: rate(http_server_requests_seconds_count[5m]) == 0
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "No traffic to application"
+          description: "No HTTP requests received in the last 5 minutes"
