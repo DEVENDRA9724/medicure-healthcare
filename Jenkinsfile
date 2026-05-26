@@ -7,7 +7,7 @@
                 echo 'Checking out code from GitHub...'
                 git branch: 'master', 
                     url: 'https://github.com/DEVENDRA9724/medicure-healthcare.git'
-                echo '✅ Code checked out successfully!'
+                echo 'Code checked out successfully!'
             }
         }
         
@@ -15,11 +15,11 @@
             steps {
                 echo 'Running Maven tests...'
                 sh 'mvn clean test'
-                echo '✅ All tests passed!'
+                echo 'All tests passed!'
             }
             post {
                 failure {
-                    echo '❌ Tests failed!'
+                    echo 'Tests failed!'
                 }
             }
         }
@@ -28,7 +28,7 @@
             steps {
                 echo 'Packaging application...'
                 sh 'mvn package -DskipTests'
-                echo '✅ JAR file created!'
+                echo 'JAR file created!'
             }
         }
         
@@ -36,7 +36,7 @@
             steps {
                 echo 'Building Docker image...'
                 sh 'docker build -t medicure-app:latest .'
-                echo '✅ Docker image built!'
+                echo 'Docker image built!'
             }
         }
         
@@ -46,17 +46,17 @@
                 sh 'docker stop medicure-container || true'
                 sh 'docker rm medicure-container || true'
                 sh 'docker run -d -p 8080:8080 --name medicure-container medicure-app:latest'
-                echo '✅ Application deployed successfully!'
+                echo 'Application deployed successfully!'
             }
         }
     }
     
     post {
         success {
-            echo '🎉 Pipeline SUCCESS! Application is running!'
+            echo 'Pipeline SUCCESS! Application is running!'
         }
         failure {
-            echo '💥 Pipeline FAILED! Check the logs above.'
+            echo 'Pipeline FAILED! Check the logs above.'
         }
     }
 }
